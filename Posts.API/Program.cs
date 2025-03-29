@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Posts.Data.DataSeeder;
+using PostsProject.Api.MiddleWare;
 using PostsProject.Application;
-using PostsProject.Core.MiddleWare;
 using PostsProject.Data;
 using PostsProject.Infrastructure;
 using System.Text;

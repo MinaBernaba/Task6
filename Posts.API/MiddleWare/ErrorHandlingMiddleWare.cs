@@ -1,15 +1,13 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
+using Posts.Application.Behaviors;
 using PostsProject.Application.ResponseBase;
-using System.ComponentModel.DataAnnotations;
 using System.Net;
 using System.Text.Json;
 
-namespace PostsProject.Core.MiddleWare
+namespace PostsProject.Api.MiddleWare
 {
-    public class ErrorHandlerMiddleware(RequestDelegate next)
+    public class ErrorHandlerMiddleware(RequestDelegate _next)
     {
-        private readonly RequestDelegate _next = next;
 
         public async Task Invoke(HttpContext context)
         {
@@ -22,21 +20,17 @@ namespace PostsProject.Core.MiddleWare
                 var contextResponse = context.Response;
                 contextResponse.ContentType = "application/json";
 
-                var response = new Response<string>() { Succeeded = false, Message = error.Message };
+                var response = new Response<string>() { Succeeded = false, Message = "Failed to process request." };
 
                 switch (error)
                 {
-                    case UnauthorizedAccessException e:
-                        response.StatusCode = HttpStatusCode.Unauthorized;
-                        contextResponse.StatusCode = (int)HttpStatusCode.Unauthorized;
+                    case CustomValidationException validationEx:
+                        response.StatusCode = validationEx.StatusCode;
+                        contextResponse.StatusCode = (int)validationEx.StatusCode;
+                        response.Errors = validationEx.Errors;
                         break;
 
-                    case ValidationException e:
-                        response.StatusCode = HttpStatusCode.UnprocessableEntity;
-                        contextResponse.StatusCode = (int)HttpStatusCode.UnprocessableEntity;
-                        break;
-
-                    case KeyNotFoundException e:
+                    case KeyNotFoundException:
                         response.StatusCode = HttpStatusCode.NotFound;
                         contextResponse.StatusCode = (int)HttpStatusCode.NotFound;
                         break;
@@ -47,21 +41,21 @@ namespace PostsProject.Core.MiddleWare
                         break;
 
                     case Exception e:
-                        response.Message += e.InnerException == null ? "" : "\n" + e.InnerException.Message;
+                        response.Message += e.InnerException?.Message ?? string.Empty;
                         response.StatusCode = HttpStatusCode.BadRequest;
                         contextResponse.StatusCode = (int)HttpStatusCode.BadRequest;
                         break;
 
                     default:
-                        // unhandled error
                         response.StatusCode = HttpStatusCode.InternalServerError;
                         contextResponse.StatusCode = (int)HttpStatusCode.InternalServerError;
                         break;
                 }
-                var result = JsonSerializer.Serialize(response);
 
+                var result = JsonSerializer.Serialize(response);
                 await contextResponse.WriteAsync(result);
             }
         }
     }
+
 }

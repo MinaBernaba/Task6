@@ -12,18 +12,18 @@ namespace Posts.Application.Features.Posts.Commands.Validators
         {
             postService = _postService;
             ApplyValidationRules();
-            ApplyCustomValidationRules();
         }
         private void ApplyValidationRules()
         {
             RuleFor(x => x.PostId)
-                .NotEmpty().WithMessage("PostId is required.");
+                .NotEmpty().WithMessage("PostId is required.")
+                .DependentRules(() =>
+                {
+                    RuleFor(x => x.PostId)
+                    .MustAsync(async (postId, cancellation) => await postService.IsPostExistByIdAsync(postId))
+                    .WithMessage(p => $"Post with ID: {p.PostId} does not exist.");
+                });
         }
-        private void ApplyCustomValidationRules()
-        {
-            RuleFor(x => x.PostId)
-                .MustAsync(async (postId, cancellation) => await postService.IsPostExistByIdAsync(postId))
-                .WithMessage(p => $"Post with ID: {p.PostId} does not exist.");
-        }
+
     }
 }

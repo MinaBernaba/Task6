@@ -13,28 +13,28 @@ namespace Posts.Application.Features.Posts.Queries.Validators
             _postService = postRepository;
 
             ApplyValidationRules();
-            ApplyCustomValidationRules();
         }
 
         private void ApplyValidationRules()
         {
             RuleFor(x => x.PostId)
-                .GreaterThan(0).WithMessage("Post ID must be greater than 0.");
-        }
-
-        private void ApplyCustomValidationRules()
-        {
-            RuleFor(x => x.PostId)
-                .MustAsync(async (postId, cancellation) => await _postService.IsExistAsync(p => p.Id == postId))
-                .WithMessage(p => $"Post with ID: {p.PostId} does not exist.");
-
-            RuleFor(x => x.PostId)
-                .MustAsync(async (postId, cancellation) =>
+                .GreaterThan(0).WithMessage("Post ID must be greater than 0.")
+                .DependentRules(() =>
                 {
-                    var post = await _postService.GetByIdAsync(postId);
-                    return post != null && post.IsPublic;
-                })
-                .WithMessage("The requested post is not public.");
+                    RuleFor(x => x.PostId)
+                    .MustAsync(async (postId, cancellation) => await _postService.IsExistAsync(p => p.Id == postId))
+                    .WithMessage(p => $"Post with ID: {p.PostId} does not exist.")
+                    .DependentRules(() =>
+                    {
+                        RuleFor(x => x.PostId)
+                        .MustAsync(async (postId, cancellation) =>
+                        {
+                            var post = await _postService.GetByIdAsync(postId);
+                            return post != null && post.IsPublic;
+                        })
+                        .WithMessage("The requested post is not public.");
+                    });
+                });
         }
     }
 

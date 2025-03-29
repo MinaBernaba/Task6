@@ -17,11 +17,9 @@ namespace Posts.Application.Features.Posts.Commands.Handler
     {
         public async Task<Response<string>> Handle(CreatePostCommand request, CancellationToken cancellationToken)
         {
-            var userIdClaim = _httpContext.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier);
-            if (userIdClaim == null)
-                throw new UnauthorizedAccessException("User is not authenticated.");
+            var userIdClaim = _httpContext.HttpContext!.User.FindFirst(ClaimTypes.NameIdentifier);
 
-            int userId = int.Parse(userIdClaim.Value);
+            int userId = int.Parse(userIdClaim!.Value);
 
             var post = _mapper.Map<Post>(request);
             post.UserId = userId;
