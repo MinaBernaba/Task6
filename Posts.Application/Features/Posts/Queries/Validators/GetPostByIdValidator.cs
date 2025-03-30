@@ -19,20 +19,23 @@ namespace Posts.Application.Features.Posts.Queries.Validators
         {
             RuleFor(x => x.PostId)
                 .GreaterThan(0).WithMessage("Post ID must be greater than 0.")
+                .WithErrorCode("400")
                 .DependentRules(() =>
                 {
                     RuleFor(x => x.PostId)
                     .MustAsync(async (postId, cancellation) => await _postService.IsExistAsync(p => p.Id == postId))
                     .WithMessage(p => $"Post with ID: {p.PostId} does not exist.")
+                    .WithErrorCode("404")
                     .DependentRules(() =>
                     {
                         RuleFor(x => x.PostId)
                         .MustAsync(async (postId, cancellation) =>
                         {
                             var post = await _postService.GetByIdAsync(postId);
-                            return post != null && post.IsPublic;
+                            return post.IsPublic;
                         })
-                        .WithMessage("The requested post is not public.");
+                        .WithMessage("The requested post is not public.")
+                        .WithErrorCode("400");
                     });
                 });
         }

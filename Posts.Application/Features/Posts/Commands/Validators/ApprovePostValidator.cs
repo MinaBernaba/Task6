@@ -17,11 +17,13 @@ namespace Posts.Application.Features.Posts.Commands.Validators
         {
             RuleFor(x => x.PostId)
                 .NotEmpty().WithMessage("PostId is required.")
+                .WithErrorCode("400")
                 .DependentRules(() =>
                 {
                     RuleFor(x => x.PostId)
                     .MustAsync(async (postId, cancellation) => await postService.IsPostExistByIdAsync(postId))
-                    .WithMessage(p => $"Post with ID: {p.PostId} does not exist.");
+                    .WithMessage(p => $"Post with ID: {p.PostId} does not exist.")
+                    .WithErrorCode("404");
                 });
         }
 

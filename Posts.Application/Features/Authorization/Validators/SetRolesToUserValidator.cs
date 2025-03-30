@@ -1,8 +1,9 @@
-using PostsProject.Application.Features.Authorization.Models;
-using PostsProject.Data.Identity;
 using FluentValidation;
+using FluentValidation.Results;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using PostsProject.Application.Features.Authorization.Models;
+using PostsProject.Data.Identity;
 
 namespace PostsProject.Application.Features.Authorization.Validators
 {
@@ -15,39 +16,57 @@ namespace PostsProject.Application.Features.Authorization.Validators
         {
             _userManager = userManager;
             _roleManager = roleManager;
-
             ApplyValidationRules();
-            ApplyCustomValidationRules();
         }
 
-        public void ApplyValidationRules()
+        public override async Task<ValidationResult> ValidateAsync(ValidationContext<SetRolesToUserCommand> context, CancellationToken cancellation = default)
         {
-            RuleFor(x => x.UserId)
-                .GreaterThan(0).WithMessage("User ID must be greater than 0.");
+            var command = context.InstanceToValidate;
+            var userExistsTask = await _userManager.Users.AnyAsync(u => u.Id == command.UserId, cancellation);
+            var allRolesTask = await _roleManager.Roles.Select(r => r.Name).ToListAsync(cancellation);
 
-            RuleFor(x => x.Roles)
-                .NotEmpty().WithMessage("Roles list is invalid!")
-                .ForEach(role =>
-                role.NotEmpty().WithMessage("Each role must be valid!")
-                .Must(r => !string.IsNullOrWhiteSpace(r)).WithMessage("Each role must be a valid!")
-                );
+            context.RootContextData["UserExists"] = userExistsTask;
+            context.RootContextData["ExistingRoles"] = allRolesTask;
+
+            return await base.ValidateAsync(context, cancellation);
         }
 
-        public void ApplyCustomValidationRules()
+        private void ApplyValidationRules()
         {
-
             RuleFor(x => x.UserId)
-                .MustAsync(async (userId, cancellation) => await _userManager.Users.AnyAsync(u => u.Id == userId))
-                .WithMessage(x => $"User with ID: {x.UserId} does not exist.");
+                .GreaterThan(0)
+                .WithMessage("User ID must be greater than 0.")
+                .WithErrorCode("400")
+                .DependentRules(() =>
+                {
+                    RuleFor(x => x.UserId)
+                        .Must((_, _, context) => (bool)context.RootContextData["UserExists"])
+                        .WithMessage(x => $"User with ID: {x.UserId} does not exist.")
+                        .WithErrorCode("404");
+                });
 
             RuleFor(x => x.Roles)
-            .MustAsync(async (roles, cancellation) =>
-            {
-                var existingRoles = await _roleManager.Roles.Select(r => r.Name).ToListAsync();
-                return roles.All(role => existingRoles.Contains(role));
-            })
-            .WithMessage("One or more roles do not exist.");
+                .NotEmpty()
+                .WithMessage("Roles list can't be empty.")
+                .WithErrorCode("400")
+                .DependentRules(() =>
+                {
+                    RuleForEach(x => x.Roles)
+                        .NotEmpty()
+                        .WithMessage("Each role must be a valid non-empty string.")
+                        .WithErrorCode("400")
+                        .DependentRules(() =>
+                        {
+                            RuleFor(x => x.Roles)
+                            .Must((command, roles, context) =>
+                            {
+                                var existingRoles = context.RootContextData["ExistingRoles"] as List<string>;
+                                return existingRoles != null && roles.All(role => existingRoles.Contains(role));
+                            })
+                            .WithMessage("One or more roles do not exist.")
+                            .WithErrorCode("404");
+                        });
+                });
         }
     }
-
 }

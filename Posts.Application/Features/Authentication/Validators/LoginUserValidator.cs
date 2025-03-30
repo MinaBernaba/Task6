@@ -1,5 +1,5 @@
-﻿using PostsProject.Application.Features.Authentication.Models;
-using FluentValidation;
+﻿using FluentValidation;
+using PostsProject.Application.Features.Authentication.Models;
 
 namespace PostsProject.Application.Features.Authentication.Validators
 {
@@ -8,22 +8,17 @@ namespace PostsProject.Application.Features.Authentication.Validators
         public LoginUserValidator()
         {
             ApplyValidationRules();
-            ApplyCustomValidationRules();
         }
 
         public void ApplyValidationRules()
         {
             RuleFor(X => X.UserName)
-                .NotNull().WithMessage("Username can't be null!")
-                .NotEmpty().WithMessage("Username can't be empty!");
+                .NotEmpty().WithMessage("Username can't be empty!")
+                .WithErrorCode("400");
 
             RuleFor(X => X.Password)
-                .NotNull().WithMessage("Password can't be null!")
-                .NotEmpty().WithMessage("Password can't be empty!");
-
-        }
-        public void ApplyCustomValidationRules()
-        {
+                .NotEmpty().WithMessage("Password can't be empty!")
+                .WithErrorCode("400"); ;
 
         }
     }

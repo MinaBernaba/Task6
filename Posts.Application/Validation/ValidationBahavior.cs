@@ -19,23 +19,25 @@ namespace PostsProject.Core.Bahaviors
 
                 if (failures.Count != 0)
                 {
-                    var errors = failures.Select(x => $"Error in {x.PropertyName}: {x.ErrorMessage}").ToList();
+                    var errors = failures
+                        .Select(x => $"Error in {x.PropertyName}: {x.ErrorMessage}")
+                        .ToList();
 
-                    // Check for specific validation errors to determine the status code
+                    var statusCodes = failures
+                        .Select(f => int.TryParse(f.ErrorCode, out int code) ? code : (int)HttpStatusCode.BadRequest)
+                        .ToHashSet();
 
-                    if (failures.Any(f => f.ErrorMessage.Contains("not authorized")))
-                        throw new CustomValidationException(HttpStatusCode.Forbidden, errors);
+                    var finalStatusCode = statusCodes.Contains(403) ? HttpStatusCode.Forbidden :
+                                          statusCodes.Contains(404) ? HttpStatusCode.NotFound :
+                                          statusCodes.Contains(409) ? HttpStatusCode.Conflict :
+                                          statusCodes.Contains(422) ? HttpStatusCode.UnprocessableEntity :
+                                          HttpStatusCode.BadRequest;
 
-                    if (failures.Any(f => f.ErrorMessage.Contains("does not exist")))
-                        throw new CustomValidationException(HttpStatusCode.NotFound, errors);
-
-                    else
-                        throw new CustomValidationException(HttpStatusCode.BadRequest, errors);
-
+                    throw new CustomValidationException(finalStatusCode, errors);
                 }
             }
             return await next();
         }
     }
-
 }
+

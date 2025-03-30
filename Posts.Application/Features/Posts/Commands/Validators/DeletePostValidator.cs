@@ -24,12 +24,14 @@ namespace Posts.Application.Features.Posts.Commands.Validators
             RuleFor(x => x.PostId)
                 .GreaterThan(0)
                 .WithMessage("Post ID must be greater than 0.")
+                .WithErrorCode("400")
                 .DependentRules(() =>
                 {
                     RuleFor(x => x.PostId)
                         .MustAsync(async (postId, cancellation) =>
                             await _postService.IsExistAsync(p => p.Id == postId))
                         .WithMessage(p => $"Post with ID: {p.PostId} does not exist.")
+                        .WithErrorCode("404")
                         .DependentRules(() =>
                         {
                             RuleFor(x => x.PostId)
@@ -41,9 +43,10 @@ namespace Posts.Application.Features.Posts.Commands.Validators
                                     int userId = int.Parse(userIdClaim!.Value);
                                     var post = await _postService.GetByIdAsync(postId);
 
-                                    return post != null && post.UserId == userId;
+                                    return post.UserId == userId;
                                 })
-                                .WithMessage("You are not authorized to delete this post.");
+                                .WithMessage("You are not authorized to delete this post.")
+                                .WithErrorCode("403");
                         });
                 });
         }
